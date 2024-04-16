@@ -3,7 +3,7 @@ import { LLM } from "@/types"
 const ANTHROPIC_PLATFORM_LINK =
   "https://docs.anthropic.com/claude/reference/getting-started-with-the-api"
 
-// Anthropic Models (UPDATED 03/13/24) -----------------------------
+// Anthropic Models (UPDATED 03/27/24) -----------------------------
 
 // Claude 2 (UPDATED 12/21/23)
 const CLAUDE_2: LLM = {
