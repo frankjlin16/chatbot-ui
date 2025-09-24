@@ -1,3 +1,4 @@
+import { CHAT_SETTING_LIMITS } from "@/lib/chat-setting-limits"
 import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
 import { ChatSettings } from "@/types"
 import { OpenAIStream, StreamingTextResponse } from "ai"
@@ -24,15 +25,13 @@ export async function POST(request: Request) {
       organization: profile.openai_organization_id
     })
 
+    const modelLimits = CHAT_SETTING_LIMITS[chatSettings.model]
+
     const response = await openai.chat.completions.create({
       model: chatSettings.model as ChatCompletionCreateParamsBase["model"],
       messages: messages as ChatCompletionCreateParamsBase["messages"],
       temperature: chatSettings.temperature,
-      max_tokens:
-        chatSettings.model === "gpt-4-vision-preview" ||
-        chatSettings.model === "gpt-4o"
-          ? 4096
-          : null, // TODO: Fix
+      max_tokens: modelLimits ? modelLimits.MAX_TOKEN_OUTPUT_LENGTH : null,
       stream: true
     })
 

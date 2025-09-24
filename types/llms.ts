@@ -14,6 +14,9 @@ export type OpenAILLMID =
   | "gpt-4-turbo-preview" // GPT-4 Turbo
   | "gpt-4-vision-preview" // GPT-4 Vision
   | "gpt-4" // GPT-4
+  | "gpt-5" // GPT-5
+  | "gpt-5-mini" // GPT-5 Mini
+  | "gpt-5-nano" // GPT-5 Nano
   | "gpt-3.5-turbo" // Updated GPT-3.5 Turbo
 
 // Google Models
@@ -72,6 +75,7 @@ export interface LLM {
     currency: string
     unit: string
     inputCost: number
+    cachedInputCost?: number
     outputCost?: number
   }
 }
