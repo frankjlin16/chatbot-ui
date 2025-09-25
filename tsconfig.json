@@ -28,7 +28,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "./.next/types/**/*.ts",
-    "i18nConfig.js"
+    "i18nConfig.js",
+    "__tests__/**/*.d.ts"
   ],
   "exclude": ["node_modules"]
 }
