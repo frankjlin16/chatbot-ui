@@ -2,9 +2,9 @@ import { openapiToFunctions } from "@/lib/openapi-conversion"
 import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
 import { Tables } from "@/supabase/types"
 import { ChatSettings } from "@/types"
-import { OpenAIStream, StreamingTextResponse } from "ai"
+import { streamText } from "ai"
 import OpenAI from "openai"
-import { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.mjs"
+import { createOpenAI } from "@ai-sdk/openai"
 
 export async function POST(request: Request) {
   const json = await request.json()
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     }
 
     const firstResponse = await openai.chat.completions.create({
-      model: chatSettings.model as ChatCompletionCreateParamsBase["model"],
+      model: chatSettings.model as any,
       messages,
       tools: allTools.length > 0 ? allTools : undefined
     })
@@ -79,9 +79,9 @@ export async function POST(request: Request) {
 
     if (toolCalls.length > 0) {
       for (const toolCall of toolCalls) {
-        const functionCall = toolCall.function
+        const functionCall = (toolCall as any).function
         const functionName = functionCall.name
-        const argumentsString = toolCall.function.arguments.trim()
+        const argumentsString = (toolCall as any).function.arguments.trim()
         const parsedArgs = JSON.parse(argumentsString)
 
         // Find the schema detail that contains the function name
@@ -198,15 +198,18 @@ export async function POST(request: Request) {
       }
     }
 
-    const secondResponse = await openai.chat.completions.create({
-      model: chatSettings.model as ChatCompletionCreateParamsBase["model"],
-      messages,
-      stream: true
+    // Stream final assistant message using AI SDK
+    const openaiProvider = createOpenAI({
+      apiKey: profile.openai_api_key || undefined,
+      organization: profile.openai_organization_id || undefined
     })
 
-    const stream = OpenAIStream(secondResponse)
+    const result = await streamText({
+      model: openaiProvider(chatSettings.model),
+      messages: messages as any
+    })
 
-    return new StreamingTextResponse(stream)
+    return result.toTextStreamResponse()
   } catch (error: any) {
     console.error(error)
     const errorMessage = error.error?.message || "An unexpected error occurred"
