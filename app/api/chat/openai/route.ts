@@ -1,10 +1,9 @@
 import { CHAT_SETTING_LIMITS } from "@/lib/chat-setting-limits"
 import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
 import { ChatSettings } from "@/types"
-import { OpenAIStream, StreamingTextResponse } from "ai"
+import { streamText } from "ai"
+import { createOpenAI } from "@ai-sdk/openai"
 import { ServerRuntime } from "next"
-import OpenAI from "openai"
-import { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.mjs"
 
 export const runtime: ServerRuntime = "edge"
 
@@ -17,35 +16,35 @@ export async function POST(request: Request) {
 
   try {
     const profile = await getServerProfile()
-
     checkApiKey(profile.openai_api_key, "OpenAI")
 
-    const openai = new OpenAI({
-      apiKey: profile.openai_api_key || "",
-      organization: profile.openai_organization_id
+    const openaiProvider = createOpenAI({
+      apiKey: profile.openai_api_key ?? undefined,
+      organization: profile.openai_organization_id ?? undefined
     })
 
-    const modelLimits = CHAT_SETTING_LIMITS[chatSettings.model]
-
-    const response = await openai.chat.completions.create({
-      model: chatSettings.model as ChatCompletionCreateParamsBase["model"],
-      messages: messages as ChatCompletionCreateParamsBase["messages"],
+    const result = await streamText({
+      model: openaiProvider(chatSettings.model),
+      messages,
       temperature: chatSettings.temperature,
-      max_tokens: modelLimits ? modelLimits.MAX_TOKEN_OUTPUT_LENGTH : null,
-      stream: true
+      maxOutputTokens:
+        CHAT_SETTING_LIMITS[chatSettings.model]?.MAX_TOKEN_OUTPUT_LENGTH
     })
-
-    const stream = OpenAIStream(response)
-
-    return new StreamingTextResponse(stream)
+    return result.toTextStreamResponse()
   } catch (error: any) {
-    let errorMessage = error.message || "An unexpected error occurred"
-    const errorCode = error.status || 500
+    let errorMessage = error?.message || "An unexpected error occurred"
+    const errorCode = error?.status || 500
 
-    if (errorMessage.toLowerCase().includes("api key not found")) {
+    if (
+      typeof errorMessage === "string" &&
+      errorMessage.toLowerCase().includes("api key not found")
+    ) {
       errorMessage =
         "OpenAI API Key not found. Please set it in your profile settings."
-    } else if (errorMessage.toLowerCase().includes("incorrect api key")) {
+    } else if (
+      typeof errorMessage === "string" &&
+      errorMessage.toLowerCase().includes("incorrect api key")
+    ) {
       errorMessage =
         "OpenAI API Key is incorrect. Please fix it in your profile settings."
     }
