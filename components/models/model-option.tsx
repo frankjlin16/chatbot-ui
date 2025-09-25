@@ -21,6 +21,13 @@ export const ModelOption: FC<ModelOptionProps> = ({ model, onSelect }) => {
                 {model.pricing.inputCost} {model.pricing.currency} per{" "}
                 {model.pricing.unit}
               </div>
+              {model.pricing.cachedInputCost !== undefined && (
+                <div>
+                  <span className="font-semibold">Cached Input Cost:</span>{" "}
+                  {model.pricing.cachedInputCost} {model.pricing.currency} per{" "}
+                  {model.pricing.unit}
+                </div>
+              )}
               {model.pricing.outputCost && (
                 <div>
                   <span className="font-semibold">Output Cost:</span>{" "}

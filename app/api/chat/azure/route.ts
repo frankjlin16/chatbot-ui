@@ -1,14 +1,16 @@
 import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
 import { ChatAPIPayload } from "@/types"
-import { OpenAIStream, StreamingTextResponse } from "ai"
-import OpenAI from "openai"
-import { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.mjs"
+import { streamText } from "ai"
+import { createAzure } from "@ai-sdk/azure"
 
 export const runtime = "edge"
 
 export async function POST(request: Request) {
   const json = await request.json()
-  const { chatSettings, messages } = json as ChatAPIPayload
+  const { chatSettings, messages } = json as {
+    chatSettings: any
+    messages: any[]
+  }
 
   try {
     const profile = await getServerProfile()
@@ -44,24 +46,29 @@ export async function POST(request: Request) {
       )
     }
 
-    const azureOpenai = new OpenAI({
-      apiKey: KEY,
-      baseURL: `${ENDPOINT}/openai/deployments/${DEPLOYMENT_ID}`,
-      defaultQuery: { "api-version": "2023-12-01-preview" },
-      defaultHeaders: { "api-key": KEY }
+    // Prefer explicit instance to support custom base URL/resource if provided
+    // Derive resourceName from endpoint URL: https://<resourceName>.openai.azure.com
+    let resourceName: string | undefined
+    try {
+      const url = new URL(ENDPOINT)
+      resourceName = url.hostname.split(".")[0]
+    } catch {
+      resourceName = undefined
+    }
+
+    const azureProvider = createAzure({
+      apiKey: profile.azure_openai_api_key ?? undefined,
+      resourceName
     })
 
-    const response = await azureOpenai.chat.completions.create({
-      model: DEPLOYMENT_ID as ChatCompletionCreateParamsBase["model"],
-      messages: messages as ChatCompletionCreateParamsBase["messages"],
-      temperature: chatSettings.temperature,
-      max_tokens: chatSettings.model === "gpt-4-vision-preview" ? 4096 : null, // TODO: Fix
-      stream: true
+    const result = await streamText({
+      model: azureProvider(DEPLOYMENT_ID), // Azure uses deployment name for model
+      messages,
+      temperature: chatSettings.temperature
     })
 
-    const stream = OpenAIStream(response)
 
-    return new StreamingTextResponse(stream)
+    return result.toTextStreamResponse()
   } catch (error: any) {
     const errorMessage = error.error?.message || "An unexpected error occurred"
     const errorCode = error.status || 500
